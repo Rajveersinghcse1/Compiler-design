@@ -1,0 +1,1580 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Web Python IDLE - Local Python Executor</title>
+    
+    <!-- CodeMirror CSS -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/codemirror.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/theme/monokai.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/theme/default.min.css">
+    
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+            transition: all 0.3s ease;
+        }
+
+        body.dark-mode {
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 20px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+            overflow: hidden;
+            backdrop-filter: blur(10px);
+            transition: all 0.3s ease;
+            height: calc(100vh - 40px);
+            display: flex;
+            flex-direction: column;
+        }
+
+        .dark-mode .container {
+            background: rgba(30, 30, 30, 0.95);
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
+        }
+
+        .header {
+            background: linear-gradient(45deg, #3776ab, #ffd43b);
+            padding: 15px 30px;
+            color: white;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-shrink: 0;
+        }
+
+        .header h1 {
+            font-size: 1.8rem;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .python-icon {
+            width: 35px;
+            height: 35px;
+            background: #3776ab;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            font-size: 1.1rem;
+        }
+
+        .controls {
+            display: flex;
+            gap: 15px;
+            align-items: center;
+        }
+
+        .connection-status {
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-size: 0.9rem;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .status-connected {
+            background: rgba(40, 167, 69, 0.2);
+            color: #28a745;
+            border: 1px solid #28a745;
+        }
+
+        .status-disconnected {
+            background: rgba(220, 53, 69, 0.2);
+            color: #dc3545;
+            border: 1px solid #dc3545;
+        }
+
+        .theme-toggle {
+            background: rgba(255, 255, 255, 0.2);
+            border: none;
+            color: white;
+            padding: 8px 15px;
+            border-radius: 50px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-size: 0.9rem;
+        }
+
+        .theme-toggle:hover {
+            background: rgba(255, 255, 255, 0.3);
+            transform: translateY(-2px);
+        }
+
+        .main-content {
+            display: flex;
+            flex: 1;
+            min-height: 0;
+        }
+
+        .editor-panel {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            border-right: 2px solid #e1e8ed;
+            min-width: 0;
+        }
+
+        .dark-mode .editor-panel {
+            border-right-color: #404040;
+        }
+
+        .panel-header {
+            background: #f8f9fa;
+            padding: 12px 20px;
+            border-bottom: 1px solid #e1e8ed;
+            font-weight: 600;
+            color: #555;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-shrink: 0;
+        }
+
+        .dark-mode .panel-header {
+            background: #2d2d2d;
+            border-bottom-color: #404040;
+            color: #ccc;
+        }
+
+        .editor-container {
+            flex: 1;
+            min-height: 0;
+        }
+
+        .CodeMirror {
+            height: 100%;
+            font-family: 'Fira Code', 'Monaco', 'Consolas', monospace;
+            font-size: 14px;
+            line-height: 1.5;
+        }
+
+        .output-panel {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            min-width: 0;
+        }
+
+        .terminal-output {
+            flex: 1;
+            background: #1e1e1e;
+            color: #ffffff;
+            font-family: 'Fira Code', 'Monaco', 'Consolas', monospace;
+            font-size: 13px;
+            line-height: 1.4;
+            padding: 15px;
+            overflow-y: auto;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+        }
+
+        .terminal-output.light-mode {
+            background: #f8f9fa;
+            color: #333;
+        }
+
+        .input-container {
+            display: none;
+            background: #2d2d2d;
+            border-top: 1px solid #404040;
+            padding: 10px 15px;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .input-container.light-mode {
+            background: #f1f3f4;
+            border-top-color: #e1e8ed;
+        }
+
+        .input-prompt {
+            color: #ffd43b;
+            font-family: 'Fira Code', 'Monaco', 'Consolas', monospace;
+            font-size: 13px;
+            white-space: nowrap;
+        }
+
+        .input-container.light-mode .input-prompt {
+            color: #3776ab;
+        }
+
+        .input-field {
+            flex: 1;
+            background: #1e1e1e;
+            border: 1px solid #404040;
+            color: #ffffff;
+            padding: 8px 12px;
+            border-radius: 4px;
+            font-family: 'Fira Code', 'Monaco', 'Consolas', monospace;
+            font-size: 13px;
+            outline: none;
+        }
+
+        .input-field.light-mode {
+            background: #ffffff;
+            color: #333;
+            border-color: #ccc;
+        }
+
+        .input-field:focus {
+            border-color: #ffd43b;
+            box-shadow: 0 0 0 2px rgba(255, 212, 59, 0.2);
+        }
+
+        .input-send {
+            background: #ffd43b;
+            color: #333;
+            border: none;
+            padding: 8px 15px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.3s ease;
+        }
+
+        .input-send:hover {
+            background: #e6c042;
+            transform: translateY(-1px);
+        }
+
+        /* Modal Input Window Styles */
+        .input-modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.7);
+            z-index: 1000;
+            backdrop-filter: blur(5px);
+        }
+
+        .input-modal-content {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: white;
+            border-radius: 15px;
+            padding: 30px;
+            min-width: 400px;
+            max-width: 600px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
+            animation: modalSlideIn 0.3s ease-out;
+        }
+
+        .dark-mode .input-modal-content {
+            background: #2d2d2d;
+            color: #ffffff;
+        }
+
+        @keyframes modalSlideIn {
+            from {
+                opacity: 0;
+                transform: translate(-50%, -60%);
+            }
+            to {
+                opacity: 1;
+                transform: translate(-50%, -50%);
+            }
+        }
+
+        .input-modal-header {
+            display: flex;
+            align-items: center;
+            margin-bottom: 20px;
+            gap: 10px;
+        }
+
+        .input-modal-icon {
+            background: linear-gradient(45deg, #3776ab, #ffd43b);
+            color: white;
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+        }
+
+        .input-modal-title {
+            font-size: 1.4rem;
+            font-weight: 600;
+            color: #3776ab;
+        }
+
+        .dark-mode .input-modal-title {
+            color: #ffd43b;
+        }
+
+        .input-modal-prompt {
+            font-size: 1.1rem;
+            margin-bottom: 15px;
+            color: #555;
+            font-family: 'Fira Code', 'Monaco', 'Consolas', monospace;
+        }
+
+        .dark-mode .input-modal-prompt {
+            color: #ccc;
+        }
+
+        .input-modal-field {
+            width: 100%;
+            padding: 12px 15px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 16px;
+            font-family: 'Fira Code', 'Monaco', 'Consolas', monospace;
+            margin-bottom: 20px;
+            transition: all 0.3s ease;
+        }
+
+        .dark-mode .input-modal-field {
+            background: #1e1e1e;
+            color: #ffffff;
+            border-color: #404040;
+        }
+
+        .input-modal-field:focus {
+            outline: none;
+            border-color: #3776ab;
+            box-shadow: 0 0 0 3px rgba(55, 118, 171, 0.2);
+        }
+
+        .input-modal-buttons {
+            display: flex;
+            gap: 10px;
+            justify-content: flex-end;
+        }
+
+        .input-modal-btn {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.3s ease;
+        }
+
+        .input-modal-btn-primary {
+            background: linear-gradient(45deg, #3776ab, #4a8bc2);
+            color: white;
+        }
+
+        .input-modal-btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(55, 118, 171, 0.4);
+        }
+
+        .input-modal-btn-secondary {
+            background: #f0f0f0;
+            color: #666;
+        }
+
+        .dark-mode .input-modal-btn-secondary {
+            background: #404040;
+            color: #ccc;
+        }
+
+        .input-modal-btn-secondary:hover {
+            background: #e0e0e0;
+        }
+
+        .dark-mode .input-modal-btn-secondary:hover {
+            background: #505050;
+        }
+
+        .button-toolbar {
+            padding: 15px 20px;
+            background: #f1f3f4;
+            border-top: 1px solid #e1e8ed;
+            display: flex;
+            gap: 10px;
+            align-items: center;
+            flex-shrink: 0;
+        }
+
+        .dark-mode .button-toolbar {
+            background: #2d2d2d;
+            border-top-color: #404040;
+        }
+
+        .btn {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 25px;
+            cursor: pointer;
+            font-size: 0.95rem;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+            min-width: 100px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 5px;
+        }
+
+        .btn::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.3), transparent);
+            transition: left 0.5s;
+        }
+
+        .btn:hover::before {
+            left: 100%;
+        }
+
+        .btn-run {
+            background: linear-gradient(45deg, #00c851, #007e33);
+            color: white;
+        }
+
+        .btn-run:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 20px rgba(0, 200, 81, 0.4);
+        }
+
+        .btn-stop {
+            background: linear-gradient(45deg, #ff4444, #cc0000);
+            color: white;
+        }
+
+        .btn-stop:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 20px rgba(255, 68, 68, 0.4);
+        }
+
+        .btn-clear {
+            background: linear-gradient(45deg, #ffc107, #e0a800);
+            color: white;
+        }
+
+        .btn-clear:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 20px rgba(255, 193, 7, 0.4);
+        }
+
+        .btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none !important;
+        }
+
+        .loading-spinner {
+            display: none;
+            width: 16px;
+            height: 16px;
+            border: 2px solid transparent;
+            border-top: 2px solid currentColor;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .server-info {
+            background: rgba(78, 205, 196, 0.1);
+            border: 1px solid #4ecdc4;
+            border-radius: 10px;
+            padding: 15px;
+            margin: 15px 20px;
+            font-size: 0.9rem;
+        }
+
+        .dark-mode .server-info {
+            background: rgba(78, 205, 196, 0.05);
+            border-color: #4ecdc4;
+        }
+
+        .error-output {
+            color: #ff6b6b !important;
+        }
+
+        .success-output {
+            color: #51cf66 !important;
+        }
+
+        .info-output {
+            color: #74c0fc !important;
+        }
+
+        .user-input {
+            color: #ffd43b !important;
+            font-weight: bold;
+        }
+
+        @media (max-width: 768px) {
+            .main-content {
+                flex-direction: column;
+            }
+
+            .editor-panel {
+                border-right: none;
+                border-bottom: 2px solid #e1e8ed;
+                max-height: 50%;
+            }
+
+            .dark-mode .editor-panel {
+                border-bottom-color: #404040;
+            }
+
+            .button-toolbar {
+                flex-wrap: wrap;
+                justify-content: center;
+            }
+
+            .btn {
+                min-width: 80px;
+                padding: 8px 15px;
+                font-size: 0.85rem;
+            }
+
+            .container {
+                height: calc(100vh - 20px);
+                margin: 10px;
+                border-radius: 15px;
+            }
+        }
+
+        .file-controls {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+
+        .file-input {
+            display: none;
+        }
+
+        .file-label {
+            background: rgba(78, 205, 196, 0.2);
+            color: #4ecdc4;
+            padding: 5px 12px;
+            border-radius: 15px;
+            cursor: pointer;
+            font-size: 0.85rem;
+            transition: all 0.3s ease;
+        }
+
+        .file-label:hover {
+            background: rgba(78, 205, 196, 0.3);
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header class="header">
+            <h1>
+                <div class="python-icon">🐍</div>
+                Web Python IDLE
+            </h1>
+            <div class="controls">
+                <div class="connection-status" id="connection-status">
+                    <span id="status-indicator">●</span>
+                    <span id="status-text">Disconnected</span>
+                </div>
+                <button class="theme-toggle" onclick="toggleTheme()">🌙 Dark</button>
+            </div>
+        </header>
+
+        <div class="server-info">
+            <strong>🔧 Setup Required:</strong> Start the Python backend server first:
+            <code>python unified_backend_fixed.py</code> - Then refresh this page.
+            Backend server should run on <code>http://localhost:5000</code>
+            <br><br>
+            <strong>✅ FIXED:</strong> TypeError with input() function has been resolved!<br>
+            <strong>✨ Enhanced Features:</strong> 
+            • Intelligent modal input windows that automatically detect input type<br>
+            • Smart context-aware prompts with validation<br>
+            • Enhanced user experience with visual feedback<br>
+            • Support for all Python input types: <code>input()</code>, <code>int(input())</code>, etc.
+        </div>
+
+        <div class="main-content">
+            <div class="editor-panel">
+                <div class="panel-header">
+                    📝 Python Code Editor
+                    <div class="file-controls">
+                        <label for="file-input" class="file-label">📁 Load .py</label>
+                        <input type="file" id="file-input" class="file-input" accept=".py,.txt" onchange="loadFile(event)">
+                        <span class="file-label" onclick="saveFile()">💾 Save</span>
+                    </div>
+                </div>
+                <div class="editor-container">
+                    <textarea id="code-editor" placeholder="# Welcome to Web Python IDLE with Interactive Input Support!
+# Your code will execute using your local Python installation
+
+print('Hello from local Python!')
+
+# Import any installed packages
+import os
+import sys
+print(f'Python version: {sys.version}')
+print(f'Current directory: {os.getcwd()}')
+
+# Try some basic operations
+numbers = [1, 2, 3, 4, 5]
+squared = [x**2 for x in numbers]
+print(f'Original: {numbers}')
+print(f'Squared: {squared}')
+
+# Interactive input now works! Try this:
+# name = input('Enter your name: ')
+# age = int(input('Enter your age: '))
+# print(f'Hello {name}, you are {age} years old!')
+
+# File operations work too!
+# with open('test.txt', 'w') as f:
+#     f.write('Hello from Python!')"></textarea>
+                </div>
+            </div>
+
+            <div class="output-panel">
+                <div class="panel-header">
+                    💻 Python Output Terminal
+                </div>
+                <div class="terminal-output" id="terminal-output">
+🐍 Python IDLE Web Interface Ready!
+
+Waiting for Python backend connection...
+Start the Flask server with: python app.py
+
+Features:
+- Execute Python code using your local Python installation
+- Access all installed packages and libraries
+- File system operations
+- Real-time output and error handling
+- Interactive Python sessions
+- Input support for interactive programs
+
+Ready to execute when backend is connected.
+                </div>
+                
+                <!-- Input container for interactive programs -->
+                <div class="input-container" id="input-container">
+                    <span class="input-prompt" id="input-prompt">>>> </span>
+                    <input type="text" class="input-field" id="input-field" placeholder="Enter input...">
+                    <button class="input-send" onclick="sendInput()">Send</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Input Modal for Interactive Programs -->
+        <div class="input-modal" id="input-modal">
+            <div class="input-modal-content">
+                <div class="input-modal-header">
+                    <div class="input-modal-icon">🐍</div>
+                    <div class="input-modal-title">Python Input Required</div>
+                </div>
+                <div class="input-modal-prompt" id="modal-prompt">Enter input:</div>
+                <input type="text" class="input-modal-field" id="modal-input-field" placeholder="Type your input here...">
+                <div class="input-modal-buttons">
+                    <button class="input-modal-btn input-modal-btn-secondary" onclick="cancelModalInput()">Cancel</button>
+                    <button class="input-modal-btn input-modal-btn-primary" onclick="sendModalInput()">Send Input</button>
+                </div>
+            </div>
+        </div>
+
+        <div class="button-toolbar">
+            <button class="btn btn-run" onclick="runCode()" disabled>
+                <span class="loading-spinner" id="run-spinner"></span>
+                ▶️ Run Code
+            </button>
+            <button class="btn btn-stop" onclick="stopExecution()" disabled>
+                ⏹️ Stop
+            </button>
+            <button class="btn btn-clear" onclick="clearOutput()">
+                🗑️ Clear Output
+            </button>
+            <button class="btn btn-clear" onclick="clearSession()">
+                🧹 Clear Session
+            </button>
+            <button class="btn btn-clear" onclick="createNewSession()">
+                🆕 New Session
+            </button>
+            <div style="margin-left: auto; color: #666; font-size: 0.85rem;" id="execution-time"></div>
+        </div>
+    </div>
+
+    <!-- CodeMirror JavaScript -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/codemirror.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/python/python.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/addon/edit/closebrackets.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/addon/edit/matchbrackets.min.js"></script>
+
+    <script>
+        // Global variables
+        let editor;
+        let isDarkMode = true;
+        let isConnected = false;
+        let executionStartTime;
+        let currentSessionId = null;
+        let isWaitingForInput = false;
+        let currentInputResolver = null;
+        const BACKEND_URL = 'http://localhost:5000';
+
+        // Initialize CodeMirror editor
+        function initializeEditor() {
+            editor = CodeMirror.fromTextArea(document.getElementById('code-editor'), {
+                mode: 'python',
+                theme: 'monokai',
+                lineNumbers: true,
+                autoCloseBrackets: true,
+                matchBrackets: true,
+                indentUnit: 4,
+                indentWithTabs: false,
+                lineWrapping: true,
+                extraKeys: {
+                    'Ctrl-Enter': runCode,
+                    'Cmd-Enter': runCode,
+                    'F5': runCode,
+                    'Tab': function(cm) {
+                        if (cm.somethingSelected()) {
+                            cm.indentSelection("add");
+                        } else {
+                            cm.replaceSelection('    ');
+                        }
+                    },
+                    'Shift-Tab': function(cm) {
+                        cm.indentSelection("subtract");
+                    }
+                }
+            });
+
+            // Auto-save content
+            editor.on('change', function() {
+                // Auto-save could be implemented here
+            });
+        }
+
+        // Check backend connection
+        async function checkConnection() {
+            try {
+                const response = await fetch(`${BACKEND_URL}/health`, {
+                    method: 'GET',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                });
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    updateConnectionStatus(true, data.python_version, data.active_sessions);
+                    
+                    // Create session if we don't have one
+                    if (!currentSessionId) {
+                        await createSession();
+                    }
+                    
+                    return true;
+                }
+            } catch (error) {
+                updateConnectionStatus(false);
+                return false;
+            }
+        }
+
+        // Create a new session
+        async function createSession() {
+            try {
+                const response = await fetch(`${BACKEND_URL}/session/create`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                });
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    currentSessionId = data.session_id;
+                    addToTerminal(`🆔 Session created: ${currentSessionId.substring(0, 8)}...\n`, 'info-output');
+                }
+            } catch (error) {
+                console.error('Failed to create session:', error);
+            }
+        }
+
+        // Update connection status
+        function updateConnectionStatus(connected, pythonVersion = '', activeSessions = 0) {
+            const wasConnected = isConnected;
+            isConnected = connected;
+            const statusElement = document.getElementById('connection-status');
+            const statusText = document.getElementById('status-text');
+            const statusIndicator = document.getElementById('status-indicator');
+            const runBtn = document.querySelector('.btn-run');
+            const stopBtn = document.querySelector('.btn-stop');
+
+            if (connected) {
+                statusElement.className = 'connection-status status-connected';
+                statusText.textContent = `Connected (${pythonVersion}) | Sessions: ${activeSessions}`;
+                statusIndicator.textContent = '●';
+                runBtn.disabled = false;
+                
+                // Only show connection message on first connection or reconnection
+                if (!wasConnected) {
+                    addToTerminal(`✅ Connected to Python backend (${pythonVersion})\n`, 'success-output');
+                }
+            } else {
+                statusElement.className = 'connection-status status-disconnected';
+                statusText.textContent = 'Disconnected';
+                statusIndicator.textContent = '●';
+                runBtn.disabled = true;
+                stopBtn.disabled = true;
+                
+                // Only show disconnection message if we were previously connected
+                if (wasConnected) {
+                    addToTerminal('❌ Lost connection to Python backend\n', 'error-output');
+                }
+            }
+        }
+
+        // Run Python code
+        async function runCode() {
+            if (!isConnected) {
+                addToTerminal('❌ Error: Backend not connected. Start Python server first.\n', 'error-output');
+                return;
+            }
+
+            const code = editor.getValue().trim();
+            if (!code) {
+                addToTerminal('⚠️ No code to execute\n', 'error-output');
+                return;
+            }
+
+            // IMPORTANT: Reset UI state at the start of each run
+            // This ensures multiple clicks work properly
+            isWaitingForInput = false;
+            const modal = document.getElementById('input-modal');
+            modal.style.display = 'none';
+            const inputContainer = document.getElementById('input-container');
+            inputContainer.style.display = 'none';
+
+            // Smart input detection - check if code contains input() calls
+            const hasInput = detectInputInCode(code);
+            if (hasInput) {
+                addToTerminal(`\n🔍 Code contains input() statements - Modal input window will appear when needed\n`, 'info-output');
+            }
+
+            // Update UI
+            const runBtn = document.querySelector('.btn-run');
+            const stopBtn = document.querySelector('.btn-stop');
+            const spinner = document.getElementById('run-spinner');
+            
+            runBtn.disabled = true;
+            stopBtn.disabled = false;
+            spinner.style.display = 'inline-block';
+            executionStartTime = Date.now();
+            
+            // Clear previous execution time
+            document.getElementById('execution-time').textContent = '';
+
+            try {
+                addToTerminal(`\n${'='.repeat(50)}\n🚀 Executing Python Code...\n${'='.repeat(50)}\n`, 'info-output');
+                
+                const requestBody = {
+                    code: code
+                };
+
+                // Include session_id if we have one
+                if (currentSessionId) {
+                    requestBody.session_id = currentSessionId;
+                }
+                
+                const response = await fetch(`${BACKEND_URL}/execute`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(requestBody)
+                });
+
+                const result = await response.json();
+                
+                if (result.success) {
+                    // Show backend execution time if provided
+                    if (result.execution_time) {
+                        addToTerminal(`⏱️ Backend execution: ${result.execution_time}s\n`, 'info-output');
+                    }
+
+                    if (result.output) {
+                        addToTerminal(result.output);
+                    }
+                    if (result.output === '') {
+                        addToTerminal('✅ Code executed successfully (no output)\n', 'success-output');
+                    }
+
+                    // Handle input requests - SIMPLIFIED
+                    if (result.waiting_for_input) {
+                        let prompt = result.input_prompt || 'Enter input: ';
+                        
+                        // Add simple notification to terminal
+                        addToTerminal(`\n� Input Required: ${prompt}\n`, 'info-output');
+                        addToTerminal(`💡 Please enter your input in the popup window\n`, 'info-output');
+                        
+                        showInputPrompt(prompt);
+                        return; // Don't reset UI yet, wait for input
+                    }
+
+                    // Handle session information
+                    if (result.session_id && result.session_id !== currentSessionId) {
+                        currentSessionId = result.session_id;
+                        addToTerminal(`🆔 Session: ${currentSessionId.substring(0, 8)}...\n`, 'info-output');
+                    }
+                } else {
+                    // Handle different error types
+                    if (result.timeout) {
+                        addToTerminal(`⏰ Code execution timed out after ${result.timeout_duration || 30} seconds\n`, 'error-output');
+                    } else {
+                        addToTerminal(`❌ Execution Error:\n${result.error}\n`, 'error-output');
+                    }
+                }
+
+                // Show total execution time (frontend + backend)
+                const executionTime = ((Date.now() - executionStartTime) / 1000).toFixed(2);
+                document.getElementById('execution-time').textContent = `⏱️ ${executionTime}s`;
+
+            } catch (error) {
+                addToTerminal(`❌ Network Error: ${error.message}\n`, 'error-output');
+            } finally {
+                // Only reset UI if not waiting for input
+                if (!isWaitingForInput) {
+                    runBtn.disabled = false;
+                    stopBtn.disabled = true;
+                    spinner.style.display = 'none';
+                }
+            }
+        }
+
+        // Smart input detection in code
+        function detectInputInCode(code) {
+            const inputPatterns = [
+                /input\s*\(/,           // input()
+                /int\s*\(\s*input\s*\(/, // int(input())
+                /float\s*\(\s*input\s*\(/, // float(input())
+                /str\s*\(\s*input\s*\(/, // str(input())
+                /eval\s*\(\s*input\s*\(/ // eval(input())
+            ];
+            
+            return inputPatterns.some(pattern => pattern.test(code));
+        }
+
+        // Extract prompt from output text with advanced pattern matching
+        function extractPromptFromOutput(output) {
+            if (!output) return null;
+            
+            // Look for common prompt patterns at the end of output
+            const lines = output.split('\n');
+            const lastNonEmptyLine = lines.reverse().find(line => line.trim());
+            
+            if (!lastNonEmptyLine) return null;
+            
+            const promptPatterns = [
+                /^(.+:\s*)$/,                        // "Enter something: "
+                /^(Enter [^:\n]*:\s*)$/,             // "Enter your name: "
+                /^(Please [^:\n]*:\s*)$/,            // "Please enter: "
+                /^([^?\n]*\?\s*)$/,                  // "What is your name? "
+                /^(Input [^:\n]*:\s*)$/,             // "Input value: "
+                /^(Type [^:\n]*:\s*)$/,              // "Type your choice: "
+                /^([^>\n]*>\s*)$/,                   // "Choice > "
+                /^([^-\n]*-\s*)$/                    // "Number - "
+            ];
+            
+            for (const pattern of promptPatterns) {
+                const match = lastNonEmptyLine.match(pattern);
+                if (match) {
+                    return match[1].trim();
+                }
+            }
+            
+            return null;
+        }
+
+        // Show input prompt - SIMPLIFIED  
+        function showInputPrompt(prompt = 'Enter input: ') {
+            isWaitingForInput = true;
+            
+            // Clean up the prompt
+            const cleanPrompt = prompt.replace(/^__INPUT_REQUEST__|__$/g, '').trim() || 'Enter input: ';
+            
+            // Show modal
+            const modal = document.getElementById('input-modal');
+            const modalPrompt = document.getElementById('modal-prompt');
+            const modalField = document.getElementById('modal-input-field');
+            const modalTitle = modal.querySelector('.input-modal-title');
+            const sendButton = modal.querySelector('.input-modal-btn-primary');
+            
+            // RESET ALL MODAL STATE - Critical for multiple runs
+            modalField.disabled = false;
+            modalField.value = '';
+            modalField.style.borderColor = '';
+            sendButton.disabled = false;
+            sendButton.textContent = 'Send Input';
+            
+            // Update modal content
+            modalTitle.textContent = getModalTitle(cleanPrompt);
+            modalPrompt.textContent = cleanPrompt;
+            modalField.placeholder = getPlaceholderText(cleanPrompt);
+            
+            // Apply theme
+            const modalContent = modal.querySelector('.input-modal-content');
+            if (isDarkMode) {
+                modalContent.classList.add('dark-mode');
+            } else {
+                modalContent.classList.remove('dark-mode');
+            }
+            
+            // Show modal
+            modal.style.display = 'block';
+            modalContent.style.animation = 'modalSlideIn 0.3s ease-out';
+            
+            // Focus input field
+            setTimeout(() => {
+                modalField.focus();
+                modalField.select();
+            }, 150);
+        }
+
+        // Get appropriate modal title based on prompt content and variable name
+        function getModalTitle(prompt, variable = null) {
+            const lowerPrompt = prompt.toLowerCase();
+            
+            // Variable-specific titles
+            if (variable) {
+                if (variable.includes('name') || lowerPrompt.includes('name')) return '👤 Name Input';
+                if (variable.includes('age') || lowerPrompt.includes('age')) return '🎂 Age Input';
+                if (variable.includes('num') || variable.includes('number') || lowerPrompt.includes('number')) return '🔢 Number Input';
+                if (variable.includes('pass') || lowerPrompt.includes('password')) return '🔒 Password Input';
+                if (variable.includes('email') || lowerPrompt.includes('email')) return '📧 Email Input';
+                if (variable.includes('phone') || lowerPrompt.includes('phone')) return '📞 Phone Input';
+                if (variable.includes('file') || variable.includes('path') || lowerPrompt.includes('file')) return '📁 File Input';
+            }
+            
+            // Prompt-based titles
+            if (lowerPrompt.includes('name')) return '👤 Name Input Required';
+            if (lowerPrompt.includes('age')) return '🎂 Age Input Required';
+            if (lowerPrompt.includes('number') || lowerPrompt.includes('digit')) return '🔢 Number Input Required';
+            if (lowerPrompt.includes('password')) return '🔒 Password Input Required';
+            if (lowerPrompt.includes('choice') || lowerPrompt.includes('option')) return '🎯 Choice Input Required';
+            if (lowerPrompt.includes('file') || lowerPrompt.includes('path')) return '📁 File Input Required';
+            if (lowerPrompt.includes('email')) return '📧 Email Input Required';
+            if (lowerPrompt.includes('phone')) return '📞 Phone Input Required';
+            
+            return '🐍 Python Input Required';
+        }
+
+        // Get appropriate placeholder text based on prompt content
+        function getPlaceholderText(prompt) {
+            const lowerPrompt = prompt.toLowerCase();
+            
+            if (lowerPrompt.includes('name')) return 'Enter your name...';
+            if (lowerPrompt.includes('age')) return 'Enter your age (e.g., 25)...';
+            if (lowerPrompt.includes('number') || lowerPrompt.includes('digit')) {
+                if (lowerPrompt.includes('space') || lowerPrompt.includes('separate')) {
+                    return 'Enter numbers separated by spaces (e.g., 1 2 3)...';
+                }
+                return 'Enter a number...';
+            }
+            if (lowerPrompt.includes('password')) return 'Enter password...';
+            if (lowerPrompt.includes('choice') || lowerPrompt.includes('option')) return 'Enter your choice...';
+            if (lowerPrompt.includes('file') || lowerPrompt.includes('path')) return 'Enter file path...';
+            if (lowerPrompt.includes('email')) return 'Enter email address...';
+            if (lowerPrompt.includes('phone')) return 'Enter phone number...';
+            if (lowerPrompt.includes('yes') || lowerPrompt.includes('no')) return 'Enter yes/no...';
+            
+            return 'Type your input here...';
+        }
+
+        // Hide input prompt
+        function hideInputPrompt() {
+            isWaitingForInput = false;
+            
+            // Hide modal
+            const modal = document.getElementById('input-modal');
+            modal.style.display = 'none';
+            
+            // Also hide bottom input container (if it was being used)
+            const inputContainer = document.getElementById('input-container');
+            inputContainer.style.display = 'none';
+            
+            // Reset UI
+            const runBtn = document.querySelector('.btn-run');
+            const stopBtn = document.querySelector('.btn-stop');
+            const spinner = document.getElementById('run-spinner');
+            
+            runBtn.disabled = false;
+            stopBtn.disabled = true;
+            spinner.style.display = 'none';
+        }
+
+        // Send input from modal to backend with enhanced feedback
+        async function sendModalInput() {
+            const modalField = document.getElementById('modal-input-field');
+            const modalPrompt = document.getElementById('modal-prompt');
+            const userInput = modalField.value;
+            
+            if (!currentSessionId) {
+                hideInputPrompt();
+                addToTerminal('❌ Error: No active session\n', 'error-output');
+                return;
+            }
+
+            // Basic input validation based on prompt context
+            const validationResult = validateInput(userInput, modalPrompt.textContent);
+            if (!validationResult.isValid) {
+                // Show validation error without closing modal
+                modalField.style.borderColor = '#ff4444';
+                modalField.placeholder = validationResult.message;
+                modalField.focus();
+                setTimeout(() => {
+                    modalField.style.borderColor = '';
+                    modalField.placeholder = getPlaceholderText(modalPrompt.textContent);
+                }, 3000);
+                return;
+            }
+
+            // Show sending feedback
+            modalField.disabled = true;
+            const sendButton = document.querySelector('.input-modal-btn-primary');
+            const originalButtonText = sendButton.textContent;
+            sendButton.textContent = '⏳ Sending...';
+            sendButton.disabled = true;
+            
+            // Show user input in terminal with special formatting
+            addToTerminal(`🔤 User Input: ${userInput}\n`, 'user-input');
+            addToTerminal(`📤 Sending input to Python process...\n`, 'info-output');
+            
+            try {
+                const response = await fetch(`${BACKEND_URL}/input`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        session_id: currentSessionId,
+                        input: userInput
+                    })
+                });
+
+                if (response.ok) {
+                    const result = await response.json();
+                    
+                    if (result.waiting_for_input) {
+                        // Still waiting for more input
+                        addToTerminal(`✅ Input processed, waiting for next input...\n`, 'success-output');
+                        
+                        // PROPERLY RESET modal for next input - Critical for multiple inputs
+                        modalField.disabled = false;
+                        modalField.value = '';
+                        modalField.style.borderColor = '';
+                        sendButton.textContent = 'Send Input';
+                        sendButton.disabled = false;
+                        
+                        if (result.output) {
+                            addToTerminal(result.output + '\n', '');
+                        }
+                        
+                        // Update prompt if provided with enhanced detection
+                        if (result.input_prompt) {
+                            const newPrompt = result.input_prompt;
+                            modalPrompt.textContent = newPrompt;
+                            modalField.placeholder = getPlaceholderText(newPrompt);
+                            document.querySelector('.input-modal-title').textContent = getModalTitle(newPrompt);
+                        }
+                        
+                        modalField.focus();
+                    } else {
+                        // Execution completed
+                        addToTerminal(`✅ All inputs processed, execution completed!\n`, 'success-output');
+                        hideInputPrompt();
+                        
+                        if (result.output) {
+                            addToTerminal(result.output + '\n', result.success ? 'success-output' : 'error-output');
+                        }
+                        
+                        if (result.error) {
+                            addToTerminal(`Error: ${result.error}\n`, 'error-output');
+                        }
+                        
+                        if (result.execution_time) {
+                            document.getElementById('execution-time').textContent = `⏱️ ${result.execution_time}s`;
+                        }
+                    }
+                } else {
+                    hideInputPrompt();
+                    addToTerminal('❌ Error: Failed to send input\n', 'error-output');
+                }
+            } catch (error) {
+                hideInputPrompt();
+                addToTerminal(`❌ Network Error: ${error.message}\n`, 'error-output');
+            } finally {
+                // ALWAYS reset button state if modal is still open (for errors or retries)
+                if (isWaitingForInput) {
+                    modalField.disabled = false;
+                    sendButton.disabled = false;
+                    sendButton.textContent = 'Send Input';
+                }
+            }
+        }
+
+        // Validate input based on context
+        function validateInput(input, prompt) {
+            const lowerPrompt = prompt.toLowerCase();
+            
+            // Check for empty input where it might not be appropriate
+            if (!input.trim()) {
+                if (lowerPrompt.includes('name') || lowerPrompt.includes('required')) {
+                    return { isValid: false, message: 'This field cannot be empty' };
+                }
+                // Allow empty input for optional prompts
+                return { isValid: true };
+            }
+            
+            // Number validation
+            if (lowerPrompt.includes('number') || lowerPrompt.includes('age') || lowerPrompt.includes('digit')) {
+                if (lowerPrompt.includes('space') || lowerPrompt.includes('separate')) {
+                    // Multiple numbers
+                    const numbers = input.trim().split(/\s+/);
+                    if (numbers.some(n => isNaN(Number(n)))) {
+                        return { isValid: false, message: 'Please enter valid numbers separated by spaces' };
+                    }
+                } else {
+                    // Single number
+                    if (isNaN(Number(input.trim()))) {
+                        return { isValid: false, message: 'Please enter a valid number' };
+                    }
+                }
+            }
+            
+            // Email validation (basic)
+            if (lowerPrompt.includes('email')) {
+                const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+                if (!emailRegex.test(input.trim())) {
+                    return { isValid: false, message: 'Please enter a valid email address' };
+                }
+            }
+            
+            // Yes/No validation
+            if (lowerPrompt.includes('yes') || lowerPrompt.includes('no') || lowerPrompt.includes('y/n')) {
+                const normalized = input.trim().toLowerCase();
+                if (!['yes', 'no', 'y', 'n'].includes(normalized)) {
+                    return { isValid: false, message: 'Please enter yes/no or y/n' };
+                }
+            }
+            
+            return { isValid: true };
+        }
+
+        // Cancel modal input
+        function cancelModalInput() {
+            hideInputPrompt();
+            addToTerminal('\n⏹️ Input cancelled by user\n', 'info-output');
+        }
+
+        // Send input to backend (legacy function for bottom input)
+        async function sendInput() {
+            const inputField = document.getElementById('input-field');
+            const userInput = inputField.value;
+            
+            if (!currentSessionId) {
+                addToTerminal('❌ No active session for input\n', 'error-output');
+                hideInputPrompt();
+                return;
+            }
+
+            // Disable input field to prevent multiple submissions
+            inputField.disabled = true;
+            const inputContainer = document.getElementById('input-container');
+            
+            try {
+                // Show user input in terminal (on same line as prompt)
+                addToTerminal(`${userInput}\n`, 'user-input');
+                
+                const response = await fetch(`${BACKEND_URL}/input`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        session_id: currentSessionId,
+                        input: userInput
+                    })
+                });
+
+                const result = await response.json();
+                
+                if (result.success) {
+                    // Show any output from processing the input
+                    if (result.output && result.output.trim()) {
+                        addToTerminal(result.output);
+                        if (!result.output.endsWith('\n')) {
+                            addToTerminal('\n');
+                        }
+                    }
+                    
+                    // Check if still waiting for more input
+                    if (result.waiting_for_input) {
+                        // Clear the input field and re-enable for next input
+                        inputField.value = '';
+                        inputField.disabled = false;
+                        inputField.focus();
+                        
+                        // Update prompt if provided
+                        if (result.input_prompt && result.input_prompt.trim()) {
+                            const inputPrompt = document.getElementById('input-prompt');
+                            inputPrompt.textContent = result.input_prompt;
+                            addToTerminal(result.input_prompt, 'info-output');
+                        }
+                    } else {
+                        // Execution completed
+                        hideInputPrompt();
+                        
+                        if (result.execution_time) {
+                            addToTerminal(`\n✅ Program execution completed in ${result.execution_time}s\n`, 'success-output');
+                            // Show total execution time
+                            const totalTime = ((Date.now() - executionStartTime) / 1000).toFixed(2);
+                            document.getElementById('execution-time').textContent = `⏱️ ${totalTime}s (backend: ${result.execution_time}s)`;
+                        } else {
+                            addToTerminal('\n✅ Program execution completed\n', 'success-output');
+                            const executionTime = ((Date.now() - executionStartTime) / 1000).toFixed(2);
+                            document.getElementById('execution-time').textContent = `⏱️ ${executionTime}s`;
+                        }
+                    }
+                } else {
+                    addToTerminal(`❌ Input Error: ${result.error}\n`, 'error-output');
+                    hideInputPrompt();
+                }
+                
+            } catch (error) {
+                addToTerminal(`❌ Network Error: ${error.message}\n`, 'error-output');
+                hideInputPrompt();
+            } finally {
+                // Re-enable input field
+                inputField.disabled = false;
+            }
+        }
+
+        // Stop code execution (placeholder - would need backend support)
+        function stopExecution() {
+            if (isWaitingForInput) {
+                hideInputPrompt();
+                addToTerminal('\n⏹️ Input cancelled by user\n', 'info-output');
+            } else {
+                addToTerminal('\n⏹️ Stop requested (implementation depends on backend)\n', 'info-output');
+            }
+            document.querySelector('.btn-stop').disabled = true;
+        }
+
+        // Add text to terminal
+        function addToTerminal(text, className = '') {
+            const terminal = document.getElementById('terminal-output');
+            const span = document.createElement('span');
+            span.textContent = text;
+            if (className) {
+                span.className = className;
+            }
+            terminal.appendChild(span);
+            terminal.scrollTop = terminal.scrollHeight;
+        }
+
+        // Clear terminal output
+        function clearOutput() {
+            document.getElementById('terminal-output').innerHTML = `🐍 Python IDLE Web Interface
+${'='.repeat(40)}
+Terminal cleared. Ready for new execution.
+
+`;
+            document.getElementById('execution-time').textContent = '';
+        }
+
+        // Toggle dark/light theme
+        function toggleTheme() {
+            isDarkMode = !isDarkMode;
+            document.body.classList.toggle('dark-mode');
+            
+            const themeBtn = document.querySelector('.theme-toggle');
+            const terminal = document.getElementById('terminal-output');
+            const newTheme = isDarkMode ? 'monokai' : 'default';
+            
+            editor.setOption('theme', newTheme);
+            themeBtn.textContent = isDarkMode ? '☀️ Light' : '🌙 Dark';
+            
+            if (isDarkMode) {
+                terminal.classList.remove('light-mode');
+            } else {
+                terminal.classList.add('light-mode');
+            }
+            
+            // Update input container theme
+            const inputContainer = document.getElementById('input-container');
+            const inputField = document.getElementById('input-field');
+            if (isDarkMode) {
+                inputContainer.classList.remove('light-mode');
+                inputField.classList.remove('light-mode');
+            } else {
+                inputContainer.classList.add('light-mode');
+                inputField.classList.add('light-mode');
+            }
+            
+            // Update modal theme
+            const modalContent = document.querySelector('.input-modal-content');
+            if (modalContent) {
+                if (isDarkMode) {
+                    modalContent.classList.add('dark-mode');
+                } else {
+                    modalContent.classList.remove('dark-mode');
+                }
+            }
+        }
+
+        // Load file
+        function loadFile(event) {
+            const file = event.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    editor.setValue(e.target.result);
+                    addToTerminal(`📁 Loaded file: ${file.name}\n`, 'info-output');
+                };
+                reader.readAsText(file);
+            }
+        }
+
+        // Save file
+        function saveFile() {
+            const code = editor.getValue();
+            const blob = new Blob([code], { type: 'text/plain' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'python_code.py';
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+            addToTerminal('💾 File saved as python_code.py\n', 'success-output');
+        }
+
+        // Add session management functions
+        async function clearSession() {
+            if (!currentSessionId) {
+                addToTerminal('⚠️ No active session to clear\n', 'error-output');
+                return;
+            }
+
+            try {
+                const response = await fetch(`${BACKEND_URL}/session/clear`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ session_id: currentSessionId })
+                });
+
+                if (response.ok) {
+                    addToTerminal('🧹 Session cleared successfully\n', 'success-output');
+                } else {
+                    addToTerminal('❌ Failed to clear session\n', 'error-output');
+                }
+            } catch (error) {
+                addToTerminal(`❌ Error clearing session: ${error.message}\n`, 'error-output');
+            }
+        }
+
+        async function createNewSession() {
+            try {
+                const response = await fetch(`${BACKEND_URL}/session/create`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                });
+
+                if (response.ok) {
+                    const data = await response.json();
+                    currentSessionId = data.session_id;
+                    addToTerminal(`🆕 New session created: ${currentSessionId.substring(0, 8)}...\n`, 'success-output');
+                } else {
+                    addToTerminal('❌ Failed to create new session\n', 'error-output');
+                }
+            } catch (error) {
+                addToTerminal(`❌ Error creating session: ${error.message}\n`, 'error-output');
+            }
+        }
+
+        // Initialize everything
+        window.addEventListener('load', async () => {
+            initializeEditor();
+            
+            // Initial connection check (silent)
+            await checkConnection();
+            
+            // Check connection every 5 seconds
+            setInterval(checkConnection, 5000);
+        });
+
+        // Handle keyboard shortcuts
+        document.addEventListener('keydown', (e) => {
+            if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+                e.preventDefault();
+                if (isWaitingForInput) {
+                    sendModalInput();
+                } else {
+                    runCode();
+                }
+            }
+            if (e.key === 'F5') {
+                e.preventDefault();
+                if (!isWaitingForInput) {
+                    runCode();
+                }
+            }
+            if (e.key === 'Enter' && e.target.id === 'input-field') {
+                e.preventDefault();
+                sendInput();
+            }
+            if (e.key === 'Enter' && e.target.id === 'modal-input-field') {
+                e.preventDefault();
+                sendModalInput();
+            }
+            if (e.key === 'Escape' && isWaitingForInput) {
+                e.preventDefault();
+                cancelModalInput();
+            }
+        });
+    </script>
+</body>
+</html>
